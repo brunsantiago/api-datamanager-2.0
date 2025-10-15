@@ -1,0 +1,22 @@
+<handlers>
+<add name="iisnode" path="server.js" verb="*" modules="iisnode" />
+</handlers>
+
+<rewrite>
+<rules>
+<rule name="myapp">
+<match url="/*" />
+<action type="Rewrite" url="server.js" />
+</rule>
+<!-- Don't interfere with requests for node-inspector debugging -->
+<rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
+<match url="^server.js\/debug[\/]?" />
+</rule>
+
+</rules>
+
+</rewrite>
+
+<directoryBrowse enabled="true" />
+
+<iisnode devErrorsEnabled="true" debuggingEnabled="true" loggingEnabled="false" nodeProcessCommandLine="C:\Program Files\nodejs\node.exe" />

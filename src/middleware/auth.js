@@ -1,17 +1,10 @@
 const jwt = require("jsonwebtoken");
+const poolAdmin = require("../db-admin.js");
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
-// API Keys por empresa para acceso desde plataforma web
-const API_KEYS = {
-  1: process.env.API_KEY_EMPRESA_1 || "api-key-empresa-1-change-in-production",
-  2: process.env.API_KEY_EMPRESA_2 || "api-key-empresa-2-change-in-production",
-  3: process.env.API_KEY_EMPRESA_3 || "api-key-empresa-3-change-in-production"
-};
-
-const validateApiKey = (req, res, next) => {
+const validateApiKey = async (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
-  const { idEmpresa } = req.params;
 
   if (!apiKey) {
     return res.status(401).json({
@@ -19,25 +12,35 @@ const validateApiKey = (req, res, next) => {
     });
   }
 
-  if (!idEmpresa || !API_KEYS[idEmpresa]) {
-    return res.status(400).json({
-      message: "ID de empresa inválido"
+  try {
+    // Consultar la cuenta asociada al API Key
+    const [rows] = await poolAdmin.query(
+      'SELECT account_id, billing_name, is_active FROM accounts WHERE api_key = ? AND is_active = 1',
+      [apiKey]
+    );
+
+    if (rows.length === 0) {
+      return res.status(403).json({
+        message: "API Key inválida o cuenta inactiva"
+      });
+    }
+
+    const account = rows[0];
+
+    // Establecer información de la cuenta en req para uso posterior
+    req.account = {
+      userType: 'web',
+      accountId: account.account_id,
+      accountName: account.billing_name
+    };
+
+    next();
+  } catch (error) {
+    console.error('Error validando API Key:', error);
+    return res.status(500).json({
+      message: "Error al validar API Key"
     });
   }
-
-  if (apiKey !== API_KEYS[idEmpresa]) {
-    return res.status(403).json({
-      message: "API Key inválida"
-    });
-  }
-
-  // Establecer usuario tipo web para identificación
-  req.user = {
-    userType: 'web',
-    idEmpresa: idEmpresa
-  };
-
-  next();
 };
 
 const authenticateToken = (req, res, next) => {

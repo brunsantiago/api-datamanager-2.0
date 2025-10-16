@@ -4,3 +4,6 @@ node_modules/
 .env.production
 SECURITY_ANALYSIS.md
 CLAUDE.md
+
+# Firebase credentials
+service-account.json

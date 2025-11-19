@@ -1,20 +1,18 @@
 const pool = require("../db.js");
+const poolAdmin = require("../db-admin.js");
 const QRCode = require('qrcode');
 const crypto = require('crypto');
 
 /**
- * Genera un código de activación formateado
- * Formato: SAB5-XXXX-XXXX-XXXX | CONS-XXXX-XXXX-XXXX | BROU-XXXX-XXXX-XXXX
- * Empresas: SAB-5 (1), CONSISA (2), BROUCLEAN (3)
+ * Genera un código de activación formateado dinámicamente
+ * Formato: XXXX-XXXX-XXXX-XXXX (usando primeras 4 letras del entity_name como prefijo)
+ * Ejemplo: SAB5-A3F2-B7E1-C9D4, CONS-F2A3-E7B1-D9C4, HIGH-D2F3-A8E1-B7C9
  */
-const generateActivationCode = (companyId) => {
-    const prefixes = {
-        1: 'SAB5',
-        2: 'CONS',
-        3: 'BROU'
-    };
-
-    const prefix = prefixes[companyId] || 'UNKN';
+const generateActivationCode = (entityName) => {
+    // Tomar las primeras 4 letras del entity_name y convertir a mayúsculas
+    // Eliminar espacios y caracteres especiales
+    const cleanName = entityName.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const prefix = cleanName.substring(0, 4).padEnd(4, 'X'); // Si es menor a 4 chars, rellenar con X
 
     // Generar 3 bloques de 4 caracteres alfanuméricos
     const block1 = crypto.randomBytes(2).toString('hex').toUpperCase().substring(0, 4);
@@ -33,46 +31,68 @@ const generateToken = () => {
 
 /**
  * POST /api/v2/provisioning/generate-token
- * Genera un nuevo token de provisioning para una empresa
+ * Genera un nuevo token de provisioning para cualquier entity del sistema
  */
 const generateProvisioningToken = async (req, res) => {
     try {
-        const { companyId } = req.body;
+        const { entityId } = req.body;
 
-        // Validar companyId
-        if (!companyId || ![1, 2, 3].includes(parseInt(companyId))) {
+        // Validar que entityId sea proporcionado
+        if (!entityId) {
             return res.status(400).json({
                 success: false,
                 error: {
-                    code: 'INVALID_COMPANY',
-                    message: 'ID de empresa inválido. Debe ser 1 (SAB-5), 2 (CONSISA) o 3 (BROUCLEAN)'
+                    code: 'MISSING_ENTITY_ID',
+                    message: 'Debe proporcionar un entityId'
                 }
             });
         }
 
-        // Mapeo de nombres de empresa
-        const companyNames = {
-            1: 'SAB-5',
-            2: 'CONSISA',
-            3: 'BROUCLEAN'
-        };
+        // Consultar entity desde appcontrol_admin
+        const [entityRows] = await poolAdmin.query(
+            `SELECT entity_id, entity_name, entity_full_name, is_active
+             FROM entities
+             WHERE entity_id = ?`,
+            [parseInt(entityId)]
+        );
 
-        const companyName = companyNames[parseInt(companyId)];
+        // Verificar que la entity exista y esté activa
+        if (entityRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: {
+                    code: 'ENTITY_NOT_FOUND',
+                    message: 'Entity no encontrada'
+                }
+            });
+        }
+
+        const entity = entityRows[0];
+
+        if (!entity.is_active) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'ENTITY_INACTIVE',
+                    message: 'La entity no está activa'
+                }
+            });
+        }
 
         // Generar token y código de activación
         const token = generateToken();
-        const activationCode = generateActivationCode(parseInt(companyId));
+        const activationCode = generateActivationCode(entity.entity_name);
 
         // Calcular fecha de expiración (24 horas)
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 24);
 
-        // Guardar en base de datos
+        // Guardar en base de datos (ahora usando entity_id y entity_name)
         const [result] = await pool.query(
             `INSERT INTO provisioning_tokens
-            (token, activation_code, company_id, company_name, expires_at)
+            (token, activation_code, entity_id, entity_name, expires_at)
             VALUES (?, ?, ?, ?, ?)`,
-            [token, activationCode, companyId, companyName, expiresAt]
+            [token, activationCode, entity.entity_id, entity.entity_name, expiresAt]
         );
 
         if (result.affectedRows === 0) {
@@ -102,8 +122,9 @@ const generateProvisioningToken = async (req, res) => {
                 activationCode: activationCode,
                 qrCodeDataUrl: qrCodeDataUrl, // Base64 data URL
                 deepLink: deepLink,
-                companyId: parseInt(companyId),
-                companyName: companyName,
+                entityId: entity.entity_id,
+                entityName: entity.entity_name,
+                entityFullName: entity.entity_full_name,
                 expiresAt: expiresAt.toISOString(),
                 createdAt: new Date().toISOString()
             }
@@ -215,9 +236,8 @@ const validateProvisioningToken = async (req, res) => {
         return res.status(200).json({
             success: true,
             data: {
-                companyId: tokenData.company_id,
-                companyName: tokenData.company_name,
-                displayName: getDisplayName(tokenData.company_id)
+                companyId: tokenData.entity_id,
+                companyName: tokenData.entity_name
             }
         });
 
@@ -323,20 +343,115 @@ const revokeProvisioningToken = async (req, res) => {
 };
 
 /**
- * Helper: Obtiene nombre display de empresa
+ * GET /api/v2/provisioning/entity-config/:entity_id
+ * Obtiene configuración completa de una entity para provisioning de dispositivos
+ * ENDPOINT PÚBLICO (no requiere autenticación)
  */
-const getDisplayName = (companyId) => {
-    const displayNames = {
-        1: 'SAB 5',
-        2: 'CONSISA',
-        3: 'BROUCLEAN'
-    };
-    return displayNames[companyId] || 'Empresa Desconocida';
+const getEntityConfig = async (req, res) => {
+    try {
+        const { entity_id } = req.params;
+
+        // Validar que entity_id sea numérico
+        if (!entity_id || isNaN(parseInt(entity_id))) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'INVALID_ENTITY_ID',
+                    message: 'ID de entidad inválido'
+                }
+            });
+        }
+
+        // Consultar entity con JOIN a account para obtener account_storage_uid
+        const [rows] = await poolAdmin.query(
+            `SELECT
+                e.entity_id,
+                e.entity_name,
+                e.entity_full_name,
+                e.storage_uid as entity_storage_uid,
+                e.is_active,
+                e.settings,
+                a.storage_uid as account_storage_uid
+            FROM entities e
+            INNER JOIN accounts a ON e.account_id = a.account_id
+            WHERE e.entity_id = ? AND e.is_active = 1`,
+            [parseInt(entity_id)]
+        );
+
+        // Entity no encontrada o inactiva
+        if (rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: {
+                    code: 'ENTITY_NOT_FOUND',
+                    message: 'Entidad no encontrada o inactiva'
+                }
+            });
+        }
+
+        const entity = rows[0];
+
+        // Parsear settings JSON
+        let settings = {};
+        try {
+            settings = typeof entity.settings === 'string'
+                ? JSON.parse(entity.settings)
+                : entity.settings || {};
+        } catch (error) {
+            console.warn(`Error parsing settings for entity ${entity_id}:`, error);
+        }
+
+        // Extraer configuración de UI
+        const uiConfig = settings.ui || {};
+        const titlePersonal = uiConfig.title_personal || 'PERSONAL';
+
+        // Extraer configuración de logos (nueva estructura anidada)
+        const logosConfig = uiConfig.logos || {};
+        const mobileLogos = logosConfig.mobile || {};
+        const logoMain = mobileLogos.main || '';
+        const logoMenu = mobileLogos.menu || '';
+
+        // Construir rutas completas de logos para mobile
+        const basePath = `accounts/${entity.account_storage_uid}/entities/${entity.entity_storage_uid}/logos`;
+        const logoMainPath = logoMain ? `${basePath}/${logoMain}` : '';
+        const logoMenuPath = logoMenu ? `${basePath}/${logoMenu}` : '';
+
+        // Respuesta con configuración completa
+        return res.status(200).json({
+            success: true,
+            data: {
+                entity_id: entity.entity_id,
+                entity_name: entity.entity_name,
+                entity_full_name: entity.entity_full_name,
+                storage_uid: entity.entity_storage_uid,
+                account_storage_uid: entity.account_storage_uid,
+                logos: {
+                    main_path: logoMainPath,
+                    menu_path: logoMenuPath
+                },
+                ui: {
+                    title_personal: titlePersonal
+                },
+                storage_base_path: basePath
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting entity config:', error);
+        return res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Error interno del servidor'
+            }
+        });
+    }
 };
 
 module.exports = {
     generateProvisioningToken,
     validateProvisioningToken,
     listProvisioningTokens,
-    revokeProvisioningToken
+    revokeProvisioningToken,
+    getEntityConfig
 };

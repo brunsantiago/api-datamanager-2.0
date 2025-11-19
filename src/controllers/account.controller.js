@@ -11,6 +11,8 @@ const getAccountInfo = async (req, res) => {
     const [rows] = await poolAdmin.query(
       `SELECT
         account_id,
+        storage_uid,
+        database_name,
         billing_name,
         billing_tax_id,
         billing_address,
@@ -46,28 +48,43 @@ const getAccountInfo = async (req, res) => {
 
 /**
  * GET /api/v2/entities
- * Lista todas las entidades de la cuenta autenticada
+ * Lista las entidades según el rol del usuario:
+ * - Account Admin: retorna TODAS las entidades de la cuenta
+ * - Entity Admin / Entity User: retorna SOLO las entidades asignadas
  */
 const listEntities = async (req, res) => {
   try {
     const accountId = req.account.accountId;
+    const userRole = req.user.role;
+    const userEntityIds = req.user.entityIds || [];
 
-    const [rows] = await poolAdmin.query(
-      `SELECT
+    let query = `
+      SELECT
         entity_id,
+        account_id,
+        storage_uid,
         entity_name,
         entity_full_name,
-        database_name,
-        storage_path,
         is_active,
         settings,
         created_at,
         updated_at
       FROM entities
       WHERE account_id = ? AND is_active = 1
-      ORDER BY entity_name`,
-      [accountId]
-    );
+    `;
+
+    const queryParams = [accountId];
+
+    // Si NO es account_admin y tiene entidades asignadas, filtrar por esas entidades
+    if (userRole !== 'account_admin' && userEntityIds.length > 0) {
+      const placeholders = userEntityIds.map(() => '?').join(',');
+      query += ` AND entity_id IN (${placeholders})`;
+      queryParams.push(...userEntityIds);
+    }
+
+    query += ` ORDER BY entity_name`;
+
+    const [rows] = await poolAdmin.query(query, queryParams);
 
     // Parsear el campo JSON settings
     const entities = rows.map(entity => ({
@@ -101,10 +118,10 @@ const getEntityById = async (req, res) => {
     const [rows] = await poolAdmin.query(
       `SELECT
         entity_id,
+        account_id,
+        storage_uid,
         entity_name,
         entity_full_name,
-        database_name,
-        storage_path,
         is_active,
         settings,
         created_at,

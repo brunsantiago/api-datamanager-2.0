@@ -3,30 +3,37 @@ const { verifyFirebaseToken } = require("../config/firebase-admin.js");
 
 /**
  * POST /api/v2/auth/login
- * Autentica un usuario con Firebase y retorna su API key
+ * Autentica un usuario con Firebase y retorna su perfil
  *
- * Body esperado:
+ * Header esperado:
+ * Authorization: Bearer <firebase-id-token>
+ *
+ * O Body alternativo (retrocompatibilidad):
  * {
  *   "idToken": "firebase-id-token-here"
  * }
  *
  * Respuesta exitosa:
  * {
- *   "success": true,
- *   "apiKey": "xxx",
- *   "account": { account_id, billing_name, ... },
- *   "user": { firebase_uid, email, role }
+ *   "user": { uid, email, role, account_id, is_active, created_at, updated_at }
  * }
  */
 const login = async (req, res) => {
   try {
-    const { idToken } = req.body;
+    // Obtener token del header Authorization o del body (retrocompatibilidad)
+    const authHeader = req.headers.authorization;
+    let idToken = req.body.idToken;
+
+    // Si viene en el header Authorization (formato: "Bearer token")
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7); // Remover "Bearer "
+    }
 
     // Validar que venga el token
     if (!idToken) {
       return res.status(400).json({
         success: false,
-        message: "Token de Firebase requerido"
+        message: "Token de Firebase requerido en header Authorization o body"
       });
     }
 
@@ -50,12 +57,15 @@ const login = async (req, res) => {
       `SELECT
         au.id,
         au.account_id,
-        au.firebase_uid,
+        au.uid,
+        au.name,
         au.email,
         au.role,
-        au.is_active
+        au.is_active,
+        au.created_at,
+        au.updated_at
       FROM account_users au
-      WHERE au.firebase_uid = ? AND au.is_active = 1`,
+      WHERE au.uid = ? AND au.is_active = 1`,
       [firebaseUid]
     );
 
@@ -69,39 +79,47 @@ const login = async (req, res) => {
     const user = userRows[0];
     const accountId = user.account_id;
 
-    // 3. Obtener la API key de la cuenta
-    const [accountRows] = await poolAdmin.query(
-      `SELECT
-        account_id,
-        api_key,
-        billing_name,
-        billing_tax_id,
-        billing_email,
-        billing_phone,
-        contact_email,
-        contact_phone,
-        is_active,
-        max_entities
-      FROM accounts
-      WHERE account_id = ? AND is_active = 1`,
-      [accountId]
+    // 2.1 Actualizar last_login
+    await poolAdmin.query(
+      'UPDATE account_users SET last_login = NOW() WHERE uid = ?',
+      [firebaseUid]
     );
 
-    if (accountRows.length === 0) {
-      return res.status(403).json({
-        success: false,
-        message: "Cuenta inactiva o no encontrada"
-      });
-    }
+    // 3. Si el usuario tiene cuenta, verificar que esté activa
+    let accountInfo = null;
 
-    const account = accountRows[0];
+    if (accountId !== null) {
+      // Usuario con cuenta (account_admin, entity_admin, entity_user)
+      const [accountRows] = await poolAdmin.query(
+        `SELECT
+          account_id,
+          storage_uid,
+          database_name,
+          billing_name,
+          billing_tax_id,
+          billing_email,
+          billing_phone,
+          contact_email,
+          contact_phone,
+          is_active,
+          max_entities
+        FROM accounts
+        WHERE account_id = ? AND is_active = 1`,
+        [accountId]
+      );
 
-    // 4. Retornar la información completa
-    res.json({
-      success: true,
-      apiKey: account.api_key,
-      account: {
+      if (accountRows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: "Cuenta inactiva o no encontrada"
+        });
+      }
+
+      const account = accountRows[0];
+      accountInfo = {
         account_id: account.account_id,
+        storage_uid: account.storage_uid,
+        database_name: account.database_name,
         billing_name: account.billing_name,
         billing_tax_id: account.billing_tax_id,
         billing_email: account.billing_email,
@@ -109,11 +127,25 @@ const login = async (req, res) => {
         contact_email: account.contact_email,
         contact_phone: account.contact_phone,
         max_entities: account.max_entities
-      },
+      };
+    }
+
+    // 4. Retornar la información completa del usuario
+    res.json({
+      success: true,
+      account: accountInfo,
       user: {
-        firebase_uid: user.firebase_uid,
+        uid: user.uid,
+        name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        account_id: user.account_id,
+        account_storage_id: null,
+        entity_ids: [],
+        permissions: user.role === 'super_admin' ? ['*'] : [],
+        is_active: user.is_active,
+        created_at: user.created_at,
+        updated_at: user.updated_at
       }
     });
 

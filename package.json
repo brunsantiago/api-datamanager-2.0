@@ -1,7 +1,7 @@
 {
-  "name": "mysql-nodejs-rest-api",
+  "name": "api-appcontrol",
   "version": "1.0.1",
-  "description": "A simple REST API with Node.js, Express and MySQL",
+  "description": "API REST para AppControl - Gestión de seguridad",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
@@ -29,10 +29,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/brunsantiago/api-datamanager-test.git"
+    "url": "git+https://github.com/brunsantiago/api-appcontrol.git"
   },
   "bugs": {
-    "url": "https://github.com/brunsantiago/api-datamanager-test/issues"
+    "url": "https://github.com/brunsantiago/api-appcontrol/issues"
   },
-  "homepage": "https://github.com/brunsantiago/api-datamanager-test#readme"
+  "homepage": "https://github.com/brunsantiago/api-appcontrol#readme"
 }

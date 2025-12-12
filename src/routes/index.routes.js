@@ -1,5 +1,5 @@
 const Router = require("express").Router;
-const { index, ping } = require("../controllers/index.rotes.js")
+const { index, ping } = require("../controllers/index.controller.js")
 
 const router = Router();
 

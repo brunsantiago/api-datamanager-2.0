@@ -7,3 +7,6 @@ CLAUDE.md
 
 # Firebase credentials
 service-account.json
+
+# Database migrations
+migrations/

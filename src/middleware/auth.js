@@ -137,7 +137,7 @@ const validateFirebaseToken = async (req, res, next) => {
  * Usar en: Rutas POST, PUT, DELETE que modifican datos
  */
 const requireWritePermission = (req, res, next) => {
-  const userRole = req.user?.role;
+  const userRole = (req.user && req.user.role);
 
   // Roles permitidos para operaciones de escritura
   const allowedRoles = ['account_admin', 'entity_admin'];
@@ -161,7 +161,7 @@ const requireWritePermission = (req, res, next) => {
  * Usar en: Operaciones críticas que solo Account Admin puede hacer
  */
 const requireAccountAdmin = (req, res, next) => {
-  const userRole = req.user?.role;
+  const userRole = (req.user && req.user.role);
 
   if (userRole !== 'account_admin') {
     return res.status(403).json({

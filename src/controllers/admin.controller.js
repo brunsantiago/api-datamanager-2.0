@@ -10,8 +10,8 @@ const { admin } = require("../config/firebase-admin.js");
 const getAllAccounts = async (req, res) => {
   try {
     // SEGURIDAD: Filtrar cuentas según el rol del usuario autenticado
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     let query = `SELECT
         account_id,
@@ -99,8 +99,8 @@ const getAccountById = async (req, res) => {
     const account = rows[0];
 
     // SEGURIDAD: Validar que account_admin solo pueda ver su propia cuenta
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     if (!isSuperAdmin && authenticatedAccountId && account.account_id !== authenticatedAccountId) {
       return res.status(403).json({
@@ -130,7 +130,7 @@ const getAccountById = async (req, res) => {
 const createAccount = async (req, res) => {
   try {
     // SEGURIDAD: Solo super_admin puede crear cuentas
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
 
     if (!isSuperAdmin) {
       return res.status(403).json({
@@ -257,8 +257,8 @@ const updateAccount = async (req, res) => {
     }
 
     // SEGURIDAD: Validar que account_admin solo pueda actualizar su propia cuenta
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     if (!isSuperAdmin && authenticatedAccountId && parseInt(id) !== authenticatedAccountId) {
       return res.status(403).json({
@@ -326,7 +326,7 @@ const updateAccount = async (req, res) => {
 const deleteAccount = async (req, res) => {
   try {
     // SEGURIDAD: Solo super_admin puede eliminar cuentas
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
 
     if (!isSuperAdmin) {
       return res.status(403).json({
@@ -418,8 +418,8 @@ const getAllEntities = async (req, res) => {
     const { account_id } = req.query;
 
     // SEGURIDAD: Filtrar entidades según el rol del usuario autenticado
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     let query = `
       SELECT
@@ -500,8 +500,8 @@ const getEntityById = async (req, res) => {
     const entity = rows[0];
 
     // SEGURIDAD: Validar que solo pueda ver entidades de su cuenta
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     if (!isSuperAdmin && authenticatedAccountId && entity.account_id !== authenticatedAccountId) {
       return res.status(403).json({
@@ -546,8 +546,8 @@ const createEntity = async (req, res) => {
     }
 
     // SEGURIDAD: Validar que solo pueda crear entidades en su propia cuenta
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     if (!isSuperAdmin && authenticatedAccountId && account_id !== authenticatedAccountId) {
       return res.status(403).json({
@@ -618,8 +618,8 @@ const updateEntity = async (req, res) => {
     const currentEntity = existing[0];
 
     // SEGURIDAD: Validar que solo pueda actualizar entidades de su cuenta
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     if (!isSuperAdmin && authenticatedAccountId && currentEntity.account_id !== authenticatedAccountId) {
       return res.status(403).json({
@@ -683,8 +683,8 @@ const deleteEntity = async (req, res) => {
     const entityToDelete = existing[0];
 
     // SEGURIDAD: Validar que solo pueda eliminar entidades de su cuenta
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     if (!isSuperAdmin && authenticatedAccountId && entityToDelete.account_id !== authenticatedAccountId) {
       return res.status(403).json({
@@ -722,8 +722,8 @@ const deleteEntity = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     // SEGURIDAD: Filtrar usuarios según el rol del usuario autenticado
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     let query = `SELECT
         au.uid,
@@ -844,8 +844,8 @@ const getUserByUid = async (req, res) => {
     const user = rows[0];
 
     // SEGURIDAD: Validar que account_admin solo pueda ver usuarios de su cuenta
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     if (!isSuperAdmin && authenticatedAccountId && user.account_id !== authenticatedAccountId) {
       return res.status(403).json({
@@ -927,7 +927,7 @@ const createUser = async (req, res) => {
 
     // SEGURIDAD: Validar permisos para crear usuarios según el rol
     // Obtener el usuario autenticado (del middleware de autenticación)
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
 
     // Si está intentando crear un super_admin, verificar que el usuario autenticado sea super_admin
     if (role === 'super_admin' && !isSuperAdmin) {
@@ -939,7 +939,7 @@ const createUser = async (req, res) => {
 
     // SEGURIDAD: Validar que account_admin solo pueda crear usuarios en su propia cuenta
     if (!isSuperAdmin && account_id) {
-      const authenticatedAccountId = req.account?.accountId;
+      const authenticatedAccountId = (req.account && req.account.accountId);
 
       // Si el usuario autenticado tiene una cuenta y está intentando crear un usuario en otra cuenta
       if (authenticatedAccountId && account_id !== authenticatedAccountId) {
@@ -979,7 +979,7 @@ const createUser = async (req, res) => {
       console.error('Error creating Firebase user:', firebaseError);
 
       // Obtener el código de error (puede estar en errorInfo.code o code)
-      const errorCode = firebaseError.errorInfo?.code || firebaseError.code;
+      const errorCode = (firebaseError.errorInfo && firebaseError.errorInfo.code) || firebaseError.code;
 
       // Manejar errores específicos de Firebase
       if (errorCode === 'auth/email-already-exists') {
@@ -1101,8 +1101,8 @@ const updateUser = async (req, res) => {
     const currentUser = existing[0];
 
     // SEGURIDAD: Validar permisos para actualizar usuarios
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     // Validar que account_admin solo pueda editar usuarios de su propia cuenta
     if (!isSuperAdmin && authenticatedAccountId && currentUser.account_id !== authenticatedAccountId) {
@@ -1187,8 +1187,8 @@ const deleteUser = async (req, res) => {
     const userToDelete = existing[0];
 
     // SEGURIDAD: Validar que account_admin solo pueda eliminar usuarios de su cuenta
-    const isSuperAdmin = req.account?.isSuperAdmin === true;
-    const authenticatedAccountId = req.account?.accountId;
+    const isSuperAdmin = (req.account && req.account.isSuperAdmin) === true;
+    const authenticatedAccountId = (req.account && req.account.accountId);
 
     if (!isSuperAdmin && authenticatedAccountId && userToDelete.account_id !== authenticatedAccountId) {
       return res.status(403).json({
@@ -1209,7 +1209,7 @@ const deleteUser = async (req, res) => {
     } catch (firebaseError) {
       // Si el usuario no existe en Firebase, continuar de todas formas
       // ya que fue eliminado de la base de datos
-      const errorCode = firebaseError.errorInfo?.code || firebaseError.code;
+      const errorCode = (firebaseError.errorInfo && firebaseError.errorInfo.code) || firebaseError.code;
       if (errorCode !== 'auth/user-not-found') {
         console.error('Error deleting user from Firebase:', firebaseError);
         // No fallar la operación completa si Firebase falla

@@ -8,6 +8,7 @@ const clientesController = require("../controllers/clientes.controller.js");
 const objetivosController = require("../controllers/objetivos.controller.js");
 const devicesController = require("../controllers/devices.controller.js");
 const puestosController = require("../controllers/puestos.controller.js");
+const panicController = require("../controllers/panic.controller.js");
 
 const router = Router();
 
@@ -82,5 +83,22 @@ router.delete("/web/request_device/:androidID/:idEmpresa", validateFirebaseToken
 
 // DELETE Eliminar todos los request devices (requiere permisos de escritura)
 router.delete("/web/request_device/:idEmpresa", validateFirebaseToken, requireWritePermission, devicesController.deleteAllRequestDevice);
+
+// ==================== PANIC - Alertas de Pánico ====================
+
+// GET Cantidad de alertas activas (ruta específica primero)
+router.get("/web/panic/count/:idEmpresa", validateFirebaseToken, panicController.countActiveAlerts);
+
+// GET Todas las alertas de pánico
+router.get("/web/panic/:idEmpresa", validateFirebaseToken, panicController.getPanicAlerts);
+
+// GET Una alerta específica
+router.get("/web/panic/:paniId/:idEmpresa", validateFirebaseToken, panicController.getPanicAlert);
+
+// PATCH Actualizar estado de alerta (requiere permisos de escritura)
+router.patch("/web/panic/:paniId/:idEmpresa", validateFirebaseToken, requireWritePermission, panicController.updatePanicStatus);
+
+// PATCH Toggle pánico en dispositivo (requiere permisos de escritura)
+router.patch("/web/devices/panic/:androidId/:idEmpresa", validateFirebaseToken, requireWritePermission, devicesController.updatePanicStatus);
 
 module.exports = router;

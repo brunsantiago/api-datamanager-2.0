@@ -15,6 +15,7 @@ const objetivosController = require("../controllers/objetivos.controller.js");
 const puestosController = require("../controllers/puestos.controller.js");
 const versionController = require("../controllers/version.controller.js");
 const holidaysController = require("../controllers/holidays.controller.js");
+const panicController = require("../controllers/panic.controller.js");
 
 const router = Router();
 
@@ -111,5 +112,16 @@ router.get("/app_releases/latest", versionController.getLatestRelease);
 // ============================================================================
 
 router.get("/feriados", authenticateToken, holidaysController.getAllHolidays);
+
+// ============================================================================
+// PANIC - Botón de pánico
+// ============================================================================
+
+router.post("/panic/:idEmpresa", authenticateToken, panicController.sendPanicAlert);
+router.get("/panic/:idEmpresa", authenticateToken, panicController.getPanicAlerts);
+router.get("/panic/count/:idEmpresa", authenticateToken, panicController.countActiveAlerts);
+router.get("/panic/:paniId/:idEmpresa", authenticateToken, panicController.getPanicAlert);
+router.patch("/panic/:paniId/:idEmpresa", authenticateToken, panicController.updatePanicStatus);
+router.patch("/devices/panic/:androidId/:idEmpresa", authenticateToken, devicesController.updatePanicStatus);
 
 module.exports = router;

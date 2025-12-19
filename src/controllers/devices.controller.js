@@ -79,10 +79,11 @@ const deleteDevice = async (req, res) => {
 const updateDevice = async (req, res) => {
   try {
     const { idEmpresa } = req.params;
-    const { devi_nlin, devi_date, devi_esta, devi_ccli, devi_cobj, devi_ncli, devi_nobj, devi_ubic, devi_coor, devi_radi, devi_anid } = req.body;
+    const { devi_nlin, devi_date, devi_esta, devi_ccli, devi_cobj, devi_ncli, devi_nobj, devi_ubic, devi_coor, devi_radi, devi_pani, devi_anid } = req.body;
+    const panicValue = devi_pani !== undefined ? devi_pani : 0;
     const [result] = await pool.query(
-      "UPDATE devices SET DEVI_NLIN=?, DEVI_DATE=?, DEVI_ESTA=?, DEVI_CCLI=?, DEVI_COBJ=?, DEVI_NCLI=?, DEVI_NOBJ=?, DEVI_UBIC=?, DEVI_COOR=?, DEVI_RADI=? WHERE DEVI_ANID = ? AND ENTITY_ID = ?",
-      [devi_nlin, devi_date, devi_esta, devi_ccli, devi_cobj, devi_ncli, devi_nobj, devi_ubic, devi_coor, devi_radi, devi_anid, idEmpresa]
+      "UPDATE devices SET DEVI_NLIN=?, DEVI_DATE=?, DEVI_ESTA=?, DEVI_CCLI=?, DEVI_COBJ=?, DEVI_NCLI=?, DEVI_NOBJ=?, DEVI_UBIC=?, DEVI_COOR=?, DEVI_RADI=?, DEVI_PANI=? WHERE DEVI_ANID = ? AND ENTITY_ID = ?",
+      [devi_nlin, devi_date, devi_esta, devi_ccli, devi_cobj, devi_ncli, devi_nobj, devi_ubic, devi_coor, devi_radi, panicValue, devi_anid, idEmpresa]
     );
     if (result.affectedRows === 0) {
       res.status(200).json({ result: 0 });
@@ -112,6 +113,35 @@ const updateVersionDevice = async (req, res) => {
     }
   } catch (error) {
     res.status(500).json({ result: 2 });
+  }
+};
+
+/**
+ * Actualiza el estado del botón de pánico de un dispositivo
+ * PATCH /devices/panic/:androidId/:idEmpresa
+ */
+const updatePanicStatus = async (req, res) => {
+  try {
+    const { androidId, idEmpresa } = req.params;
+    const { enabled } = req.body; // true o false
+
+    const panicValue = enabled ? 1 : 0;
+    const [result] = await pool.query(
+      "UPDATE devices SET DEVI_PANI = ? WHERE DEVI_ANID = ? AND ENTITY_ID = ?",
+      [panicValue, androidId, idEmpresa]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ result: 0, message: "Dispositivo no encontrado" });
+    }
+
+    return res.json({
+      result: 1,
+      message: enabled ? "Pánico habilitado" : "Pánico deshabilitado"
+    });
+  } catch (error) {
+    console.error("Error en updatePanicStatus:", error);
+    return res.status(500).json({ result: 2, message: error.message });
   }
 };
 
@@ -232,6 +262,7 @@ module.exports = {
   deleteDevice,
   updateDevice,
   updateVersionDevice,
+  updatePanicStatus,
   // Request Devices
   getRequestDevices,
   countPending,

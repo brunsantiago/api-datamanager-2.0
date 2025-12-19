@@ -75,15 +75,16 @@ const deleteDevice = async (req, res) => {
 
 /**
  * Actualiza un dispositivo
+ * Nota: DEVI_DATE no se actualiza aquí, solo en updateVersionDevice
  */
 const updateDevice = async (req, res) => {
   try {
     const { idEmpresa } = req.params;
-    const { devi_nlin, devi_date, devi_esta, devi_ccli, devi_cobj, devi_ncli, devi_nobj, devi_ubic, devi_coor, devi_radi, devi_pani, devi_anid } = req.body;
+    const { devi_nlin, devi_esta, devi_ccli, devi_cobj, devi_ncli, devi_nobj, devi_ubic, devi_coor, devi_radi, devi_pani, devi_anid } = req.body;
     const panicValue = devi_pani !== undefined ? devi_pani : 0;
     const [result] = await pool.query(
-      "UPDATE devices SET DEVI_NLIN=?, DEVI_DATE=?, DEVI_ESTA=?, DEVI_CCLI=?, DEVI_COBJ=?, DEVI_NCLI=?, DEVI_NOBJ=?, DEVI_UBIC=?, DEVI_COOR=?, DEVI_RADI=?, DEVI_PANI=? WHERE DEVI_ANID = ? AND ENTITY_ID = ?",
-      [devi_nlin, devi_date, devi_esta, devi_ccli, devi_cobj, devi_ncli, devi_nobj, devi_ubic, devi_coor, devi_radi, panicValue, devi_anid, idEmpresa]
+      "UPDATE devices SET DEVI_NLIN=?, DEVI_ESTA=?, DEVI_CCLI=?, DEVI_COBJ=?, DEVI_NCLI=?, DEVI_NOBJ=?, DEVI_UBIC=?, DEVI_COOR=?, DEVI_RADI=?, DEVI_PANI=? WHERE DEVI_ANID = ? AND ENTITY_ID = ?",
+      [devi_nlin, devi_esta, devi_ccli, devi_cobj, devi_ncli, devi_nobj, devi_ubic, devi_coor, devi_radi, panicValue, devi_anid, idEmpresa]
     );
     if (result.affectedRows === 0) {
       res.status(200).json({ result: 0 });

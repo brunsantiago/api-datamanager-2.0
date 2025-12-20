@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const pool = require("../db.js");
 const poolAdmin = require("../db-admin.js");
 const { verifyFirebaseToken } = require("../config/firebase-admin.js");
 
@@ -175,6 +176,43 @@ const requireAccountAdmin = (req, res, next) => {
 };
 
 /**
+ * Middleware para verificar el estado del dispositivo
+ * Si el dispositivo no está ACTIVO (BAJA, SUSPENDIDO, etc.), devuelve 403
+ * Esto fuerza el logout automático en la app móvil
+ */
+const checkDeviceStatus = async (req, res, next) => {
+  try {
+    const androidId = req.user?.androidId;
+    const idEmpresa = req.user?.idEmpresa;
+
+    // Si no hay androidId, continuar (compatibilidad con tokens antiguos)
+    if (!androidId || !idEmpresa) {
+      return next();
+    }
+
+    const [rows] = await pool.query(
+      'SELECT DEVI_ESTA FROM devices WHERE DEVI_ANID = ? AND ENTITY_ID = ?',
+      [androidId, idEmpresa]
+    );
+
+    // Si el dispositivo existe y no está ACTIVO, bloquear
+    if (rows.length > 0 && rows[0].DEVI_ESTA !== 'ACTIVO') {
+      return res.status(403).json({
+        error: 'DEVICE_INACTIVE',
+        message: 'Dispositivo no activo',
+        status: rows[0].DEVI_ESTA
+      });
+    }
+
+    next();
+  } catch (error) {
+    // En caso de error de BD, no bloquear al usuario
+    console.error('Error checking device status:', error);
+    next();
+  }
+};
+
+/**
  * ============================================
  * RESUMEN DE MIDDLEWARES DE AUTENTICACIÓN
  * ============================================
@@ -210,5 +248,6 @@ module.exports = {
   validateFirebaseToken,
   generateToken,
   requireWritePermission,
-  requireAccountAdmin
+  requireAccountAdmin,
+  checkDeviceStatus
 };

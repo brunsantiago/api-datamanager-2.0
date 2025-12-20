@@ -62,7 +62,7 @@ const userRegister = async (req, res) => {
 const userLogin = async (req, res) => {
   try {
     const { idEmpresa } = req.params;
-    const { user_lega, user_pass } = req.body;
+    const { user_lega, user_pass, androidId } = req.body;
     const [result] = await pool.query(
       "SELECT * FROM users WHERE USER_LEGA = ? AND ENTITY_ID = ?",
       [user_lega, idEmpresa]
@@ -77,7 +77,8 @@ const userLogin = async (req, res) => {
         userCodi: result[0].USER_CODI,
         userLega: result[0].USER_LEGA,
         userPerf: result[0].USER_PERF,
-        idEmpresa: idEmpresa
+        idEmpresa: idEmpresa,
+        androidId: androidId || null
       };
 
       const token = generateToken(tokenPayload);

@@ -182,8 +182,8 @@ const requireAccountAdmin = (req, res, next) => {
  */
 const checkDeviceStatus = async (req, res, next) => {
   try {
-    const androidId = req.user?.androidId;
-    const idEmpresa = req.user?.idEmpresa;
+    const androidId = req.user && req.user.androidId;
+    const idEmpresa = req.user && req.user.idEmpresa;
 
     // Si no hay androidId, continuar (compatibilidad con tokens antiguos)
     if (!androidId || !idEmpresa) {

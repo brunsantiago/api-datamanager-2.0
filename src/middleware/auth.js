@@ -196,8 +196,9 @@ const checkDeviceStatus = async (req, res, next) => {
     );
 
     // Si el dispositivo existe y no está ACTIVO, bloquear
+    // Usamos 400 en lugar de 403 porque el proxy/nginx intercepta los 403 y devuelve HTML
     if (rows.length > 0 && rows[0].DEVI_ESTA !== 'ACTIVO') {
-      return res.status(403).json({
+      return res.status(400).json({
         error: 'DEVICE_INACTIVE',
         message: 'Dispositivo no activo',
         status: rows[0].DEVI_ESTA

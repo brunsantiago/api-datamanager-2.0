@@ -12,10 +12,23 @@ const indexRoutes = require("./routes/index.routes.js");
 
 const app = express();
 
+// CORS configuration
+const corsOptions = {
+  origin: [
+    'https://webadmin-4fa05.web.app',
+    'https://webadmin-4fa05.firebaseapp.com',
+    'http://localhost:4200',
+    'http://localhost:4201'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
 // Middlewares
 app.use(morgan("dev"));
 app.use(express.json());
-app.use(cors());
+app.use(cors(corsOptions));
 
 // Routes
 app.use("/", indexRoutes);

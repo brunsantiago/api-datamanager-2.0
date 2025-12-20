@@ -52,15 +52,19 @@ const getPanicAlerts = async (req, res) => {
         const { idEmpresa } = req.params;
         const { status, limit = 50, offset = 0 } = req.query;
 
-        let query = `SELECT * FROM panic_alerts WHERE ENTITY_ID = ?`;
+        // JOIN con devices para obtener el número de teléfono del dispositivo
+        let query = `SELECT p.*, d.DEVI_NLIN as PANI_PHONE
+                     FROM panic_alerts p
+                     LEFT JOIN devices d ON p.PANI_ANID = d.DEVI_ANID AND p.ENTITY_ID = d.ENTITY_ID
+                     WHERE p.ENTITY_ID = ?`;
         const params = [idEmpresa];
 
         if (status) {
-            query += ` AND PANI_ESTA = ?`;
+            query += ` AND p.PANI_ESTA = ?`;
             params.push(status);
         }
 
-        query += ` ORDER BY PANI_DATE DESC LIMIT ? OFFSET ?`;
+        query += ` ORDER BY p.PANI_DATE DESC LIMIT ? OFFSET ?`;
         params.push(parseInt(limit), parseInt(offset));
 
         const [rows] = await pool.query(query, params);
